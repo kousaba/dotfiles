@@ -1,0 +1,6 @@
+*:Zone.Identifier
+.DS_Store
+Thumbs.db
+
+repomix-output.xml
+lazy-lock.json
