@@ -1,0 +1,15 @@
+# .gitconfig (リポジトリで管理・共有する共通設定)
+
+[include]
+    path = ~/.gitconfig.local
+
+[core]
+    editor = nvim
+    autocrlf = input
+    quotepath = false
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = false

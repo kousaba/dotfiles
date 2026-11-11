@@ -99,3 +99,5 @@ if [[ -f ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme ]]; then
     [[ -f ~/.dotfiles/zsh/.p10k.ascii.zsh ]] && source ~/.dotfiles/zsh/.p10k.ascii.zsh
   fi
 fi
+
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local

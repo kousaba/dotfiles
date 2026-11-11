@@ -460,6 +460,90 @@ setup_symlinks() {
     [[ -f "$DOTFILES_DIR/zsh/.p10k.zsh" ]] && link_file "$DOTFILES_DIR/zsh/.p10k.zsh" "$HOME/.p10k.zsh"
 }
 
+prebake_neovim() {
+    log_step "Pre-baking Neovim plugins and parsers (headless mode)..."
+
+    # ~/.local/bin を確実に PATH に含めておく
+    export PATH="$LOCAL_BIN_DIR:$PATH"
+
+    if ! command -v nvim >/dev/null 2>&1; then
+        log_warn "Neovim executable not found in PATH. Skipping headless sync."
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "[Dry-run] Would execute: nvim --headless '+Lazy! sync' +qa"
+        return 0
+    fi
+
+    log_action "Synchronizing Lazy.nvim packages in background..."
+    # --headless で起動し、同期が終わったら即終了 (+qa)
+    if nvim --headless "+Lazy! sync" +qa 2>/dev/null; then
+        log_success "Neovim plugins pre-baked successfully."
+    else
+        log_warn "Neovim pre-baking finished with warnings (normal on first run)."
+    fi
+}
+
+
+// git user setup
+setup_git_user() {
+    log_step "Checking local Git identity (~/.gitconfig.local)..."
+
+    local git_local="$HOME/.gitconfig.local"
+
+    # すでに設定ファイルが存在する場合はスキップ（上書き防止）
+    if [[ -f "$git_local" ]]; then
+        log_debug "Found existing Git identity at $git_local (preserved)."
+        return 0
+    fi
+
+    # CI環境など --yes オプションがついている場合の安全対策
+    if [[ "$ASSUME_YES" == true ]]; then
+        log_warn "Non-interactive mode: Skipping ~/.gitconfig.local creation."
+        log_info "Please configure your git user manually later: git config --file ~/.gitconfig.local user.name 'Your Name'"
+        return 0
+    fi
+
+    log_info "No local Git identity found. Let's configure your commit author info."
+
+    # 現在の環境に設定が残っていればそれを初期値としてサジェスト
+    local default_name default_email
+    default_name="$(git config --global user.name 2>/dev/null || echo "")"
+    default_email="$(git config --global user.email 2>/dev/null || echo "")"
+
+    # 名前入力
+    local name_prompt="Enter your Git User Name"
+    [[ -n "$default_name" ]] && name_prompt+=" [default: $default_name]"
+    read -rp "$(echo -e "${C_CYAN}[?]${C_RESET} ${name_prompt}: ")" git_name
+    git_name="${git_name:-$default_name}"
+
+    # メール入力
+    local email_prompt="Enter your Git Email address"
+    [[ -n "$default_email" ]] && email_prompt+=" [default: $default_email]"
+    read -rp "$(echo -e "${C_CYAN}[?]${C_RESET} ${email_prompt}: ")" git_email
+    git_email="${git_email:-$default_email}"
+
+    if [[ -z "$git_name" || -z "$git_email" ]]; then
+        log_warn "Git name or email was left empty. Skipping ~/.gitconfig.local creation."
+        return 0
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "[Dry-run] Would create $git_local with name='$git_name', email='$git_email'"
+        return 0
+    fi
+
+    # ~/.gitconfig.local を生成
+    cat << EOF > "$git_local"
+# Local machine-specific Git identity (Not tracked by dotfiles repo)
+[user]
+    name = $git_name
+    email = $git_email
+EOF
+    log_success "Git identity created successfully: $git_local"
+}
+
 # -----------------------------------------------------------------------------
 # Default Shell Orchestration
 # -----------------------------------------------------------------------------
@@ -505,11 +589,7 @@ main() {
 
     echo -e "${C_BOLD}${C_CYAN}"
     cat << "EOF"
-  ____       _    __ _ _           ___           _        _ _           
- |  _ \  ___| |_ / _(_) | ___  ___|_ _|_ __  ___| |_ __ _| | | ___ _ __ 
- | | | |/ _ \ __| |_| | |/ _ \/ __|| || '_ \/ __| __/ _` | | |/ _ \ '__|
- | |_| | (_) | |_|  _| | |  __/\__ \| || | | \__ \ || (_| | | |  __/ |   
- |____/ \___/ \__|_| |_|_|\___||___/___|_| |_|___/\__\__,_|_|_|\___|_|   
+    DOTFILE INSTALLER
 EOF
     echo -e "${C_RESET}"
     echo -e "${C_BOLD}Host Architecture : $(uname -s) ($(uname -m))${C_RESET}"
@@ -526,7 +606,9 @@ EOF
     save_profile_files
     install_packages
     setup_zsh_plugins
+    setup_git_user
     setup_symlinks
+    prebake_neovim
     setup_shell
 
     echo -e "\n${C_BOLD}================================================================${C_RESET}"
