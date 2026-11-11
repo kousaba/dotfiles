@@ -19,8 +19,23 @@ vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
 
 -- 削除時にクリップボードの汚染を防ぐ
-vim.keymap.set({ "n", "v" }, "x", '"_x')
-vim.keymap.set({ "n", "v" }, "c", '"_c')
+-- 既存の normal.lua のクリップボード設定部分に追記・修正:
+if _G.DotProfile.env == "cloud" or os.getenv("SSH_CONNECTION") then
+  -- OSC 52を利用してリモート先の Neovim からローカルのクリップボードへヤンクを届ける
+  vim.g.clipboard = {
+    name = 'OSC 52',
+    copy = {
+      ['+'] = require('vim.ui.clipboard.osc52').copy('+'),
+      ['*'] = require('vim.ui.clipboard.osc52').copy('*'),
+    },
+    paste = {
+      ['+'] = require('vim.ui.clipboard.osc52').paste('+'),
+      ['*'] = require('vim.ui.clipboard.osc52').paste('*'),
+    },
+  }
+else
+  vim.opt.clipboard = "unnamedplus"
+end
 
 vim.opt.number = true                                                   -- 行番号
 vim.opt.relativenumber = true                                           -- 相対行番号

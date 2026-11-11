@@ -1,3 +1,6 @@
+-- nvim/lua/plugins/neo-tree.lua
+local profile = _G.DotProfile
+
 return {
   "nvim-neo-tree/neo-tree.nvim",
   branch = "v3.x",
@@ -8,14 +11,34 @@ return {
   },
   config = function()
     vim.keymap.set('n', '<leader>e', ':Neotree toggle<CR>', { silent = true })
+
+    -- アイコン文字のフォールバック
+    local symbols = profile.has_nerd_font and {
+      added     = "✚",
+      modified  = "",
+      deleted   = "✖",
+      renamed   = "󰁔",
+      untracked = "",
+      ignored   = "",
+      unstaged  = "󰄱",
+      staged    = "",
+      conflict  = "",
+    } or {
+      added     = "+",
+      modified  = "*",
+      deleted   = "d",
+      renamed   = "r",
+      untracked = "?",
+      ignored   = "!",
+      unstaged  = "u",
+      staged    = "s",
+      conflict  = "c",
+    }
+
     require("neo-tree").setup({
       window = {
         position = "left",
         width = 30,
-        mapping_options = {
-          noremap = true,
-          nowait = true,
-        },
         mappings = {
           ["<space>"] = "none",
           ["l"] = "open",
@@ -27,42 +50,26 @@ return {
           visible = true,
           hide_dotfiles = false,
           hide_gitignored = false,
-          hide_by_name = {
-            ".git",
-            "thumbs.db",
-            "node_modules",
-          },
         },
-        follow_current_file = {
-          enabled = true,
-          leave_dirs_open = false,
-        },
-        use_libuv_file_matcher = true,
       },
       default_component_configs = {
-        indent = {
-          with_expanders = true,
-          expander_collapsed = "",
-          expander_expanded = "",
+        icon = {
+          enabled = profile.has_nerd_font,
         },
-        symbols = {
-          added     = "✚",
-          modified  = "",
-          deleted   = "✖",
-          renamed   = "󰁔",
-          untracked = "",
-          ignored   = "",
-          unstaged  = "󰄱",
-          staged    = "",
-          conflict  = "",
-        },
+        symbols = symbols,
       }
     })
-    vim.api.nvim_create_autocmd("VimEnter", {
-      callback = function()
-        vim.cmd("Neotree show")
-      end
-    })
+
+    -- High スペック時のみ起動時に自動表示
+    if profile.spec == "high" then
+      vim.api.nvim_create_autocmd("VimEnter", {
+        callback = function()
+          vim.cmd("Neotree show")
+        end
+      })
+    end
+
+    -- 最後のウィンドウがNeo-treeなら終了
     vim.api.nvim_create_autocmd("BufEnter", {
       group = vim.api.nvim_create_augroup("NeoTreeAutoQuit", { clear = true }),
       callback = function()
