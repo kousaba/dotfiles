@@ -486,7 +486,7 @@ prebake_neovim() {
 }
 
 
-// git user setup
+# git user setup
 setup_git_user() {
     log_step "Checking local Git identity (~/.gitconfig.local)..."
 
