@@ -88,4 +88,14 @@ fi
 [[ -f ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # p10k設定
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+## --- 5. プロンプト設定 ---
+if [[ -f ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme ]]; then
+  source ~/.zsh/powerlevel10k/powerlevel10k.zsh-theme
+
+  # Nerd Fonts の有無に応じて p10k 設定を切り替え
+  if [[ "${DOTFILES_NERD_FONT:-true}" == "true" ]]; then
+    [[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+  else
+    [[ -f ~/.dotfiles/zsh/.p10k.ascii.zsh ]] && source ~/.dotfiles/zsh/.p10k.ascii.zsh
+  fi
+fi

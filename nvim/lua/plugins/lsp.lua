@@ -1,5 +1,7 @@
+-- nvim/lua/plugins/lsp.lua
+local profile = _G.DotProfile
+
 return {
-  -- LSP 本体の設定
   {
     "neovim/nvim-lspconfig",
     dependencies = {
@@ -9,12 +11,21 @@ return {
     },
     config = function()
       require("mason").setup()
+
+      -- スペックに応じて自動インストールするLSPを制限
+      local ensure_installed = {}
+      if profile.spec == "high" then
+        ensure_installed = { "lua_ls", "clangd", "jdtls", "asm_lsp", "pyright" }
+      else
+        -- Low スペック時は頻度の高いもの最小限に留める
+        ensure_installed = { "lua_ls" }
+      end
+
       require("mason-lspconfig").setup({
-        -- 1. asm_lsp を追加
-        ensure_installed = { "lua_ls", "clangd", "jdtls", "asm_lsp" },
+        ensure_installed = ensure_installed,
       })
 
-      -- 共通キーバインド設定 (LspAttach)
+      -- 共通キーバインド
       vim.api.nvim_create_autocmd('LspAttach', {
         callback = function(event)
           local opts = { buffer = event.buf }
@@ -26,64 +37,58 @@ return {
         end,
       })
 
-      -- 保存時に自動整形
-      vim.api.nvim_create_autocmd("BufWritePre", {
-        -- アセンブリの拡張子 (.s, .asm) も追加しておくと便利です
-        pattern = { "*.lua", "*.cpp", "*.c", "*.java", "*.s", "*.S", "*.asm" },
-        callback = function()
-          vim.lsp.buf.format({ async = false })
-        end,
-      })
+      -- 保存時自動整形（Lowスペック時は動作を軽くするため必要最低限に）
+      if profile.spec == "high" then
+        vim.api.nvim_create_autocmd("BufWritePre", {
+          pattern = { "*.lua", "*.cpp", "*.c", "*.java", "*.s", "*.S", "*.asm", "*.py" },
+          callback = function()
+            vim.lsp.buf.format({ async = false })
+          end,
+        })
+      end
 
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
-      -- --- 各言語の設定 ---
-
-      -- Lua
+      -- 各言語サーバーの初期化
       vim.lsp.config('lua_ls', {
         capabilities = capabilities,
         settings = { Lua = { diagnostics = { globals = { "vim" } } } },
       })
       vim.lsp.enable('lua_ls')
 
-      -- C++
-      vim.lsp.config('clangd', { capabilities = capabilities })
-      vim.lsp.enable('clangd')
+      -- Highスペック時のみ追加LSPをアクティブ化
+      if profile.spec == "high" then
+        vim.lsp.config('clangd', { capabilities = capabilities })
+        vim.lsp.enable('clangd')
 
-      -- Java
-      vim.lsp.config('jdtls', {
-        capabilities = capabilities,
-        root_dir = vim.fs.root(0, { "pom.xml", "gradle.build", ".git" }),
-      })
-      vim.lsp.enable('jdtls')
+        vim.lsp.config('jdtls', {
+          capabilities = capabilities,
+          root_dir = vim.fs.root(0, { "pom.xml", "gradle.build", ".git" }),
+        })
+        vim.lsp.enable('jdtls')
 
-      -- 2. Assembly (asm_lsp) の設定を追加
-      vim.lsp.config('asm_lsp', {
-        capabilities = capabilities,
-        root_dir = vim.fs.root(0, { ".git", ".asm_lsp.toml" }),
-        filetypes = { "asm", "s", "S" },
-        settings = {
-          assembler = "nasm",
-          instruction_set = "x86",
-        },
-      })
+        vim.lsp.config('asm_lsp', {
+          capabilities = capabilities,
+          root_dir = vim.fs.root(0, { ".git", ".asm_lsp.toml" }),
+          filetypes = { "asm", "s", "S" },
+          settings = { assembler = "nasm", instruction_set = "x86" },
+        })
+        vim.lsp.enable('asm_lsp')
 
-      -- 3. python
-      vim.lsp.config('pyright', {
-        capabilities = capabilities,
-        settings = {
-          python = {
-            analysis = {
-              autoSearchPaths = true,
-              useLibraryCodeForTypes = true,
-              diagnosticMode = "workspace",
+        vim.lsp.config('pyright', {
+          capabilities = capabilities,
+          settings = {
+            python = {
+              analysis = {
+                autoSearchPaths = true,
+                useLibraryCodeForTypes = true,
+                diagnosticMode = "workspace",
+              },
             },
           },
-        },
-      })
-      -- 4. 有効化
-      vim.lsp.enable('pyright')
-      vim.lsp.enable('asm_lsp')
+        })
+        vim.lsp.enable('pyright')
+      end
     end,
   },
 }
